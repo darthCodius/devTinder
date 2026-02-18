@@ -2,24 +2,30 @@ const express = require("express");
 const app = express();
 const port = 3030;
 
-app.get("/user", (req, res) => {
-  const dummyUser = {
-    name: "Abhinav Yadav",
-    email: "test@gmail.com",
-  };
-  res.send(dummyUser);
-});
+const { adminAuth, userAuth } = require("./middleware/auth");
 
-app.post("/user", (req, res) => {
-  console.log("Save user data");
-  res.send({ success: true, message: "data saved!" });
-});
+// Middleware for all request coming to the /admin routes
+app.use("/admin", adminAuth);
 
-app.delete("/user", (req, res) => {
-  console.log("Delete user data");
+app.get("/user/login", (req, res) => {
   res.send({
-    success: true,
-    message: "deleted user data",
+    message: "User logged in!",
+    data: {},
+  });
+});
+
+app.use("/user/data", userAuth);
+
+app.get("/admin/getalldata", (req, res) => {
+  res.send({
+    message: "Sent all data",
+    data: {},
+  });
+});
+
+app.delete("/admin/deletealldata", (req, res) => {
+  res.send({
+    message: "Deleted all data",
   });
 });
 
