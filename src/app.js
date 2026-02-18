@@ -1,34 +1,40 @@
 const express = require("express");
 const app = express();
+const { connectDb } = require("./config/database");
+const User = require("./models/user");
+
 const port = 3030;
 
-const { adminAuth, userAuth } = require("./middleware/auth");
+app.post("/signup", async (req, res) => {
+  const userObj = {
+    firstName: "Amit",
+    lastName: "Kumar",
+    emailId: "test4@gmail.com",
+    password: "amit@123",
+  };
 
-// Middleware for all request coming to the /admin routes
-app.use("/admin", adminAuth);
+  // Creating a new instance of the User model
+  const user = new User(userObj);
 
-app.get("/user/login", (req, res) => {
-  res.send({
-    message: "User logged in!",
-    data: {},
-  });
+  try {
+    await user.save();
+    res.send({
+      status: 200,
+      message: "User Signed Up",
+    });
+  } catch (error) {
+    res.status(400).send({
+      status: 400,
+      message: "Internal Server Error",
+    });
+  }
 });
 
-app.use("/user/data", userAuth);
-
-app.get("/admin/getalldata", (req, res) => {
-  res.send({
-    message: "Sent all data",
-    data: {},
-  });
-});
-
-app.delete("/admin/deletealldata", (req, res) => {
-  res.send({
-    message: "Deleted all data",
-  });
-});
-
-app.listen(port, () => {
-  console.log(`App listening on port: ${port}`);
-});
+connectDb()
+  .then(() => {
+    console.log("MongoDB connection successful");
+    app.listen(port, () => {
+      console.log(`App listening on port: ${port}`);
+    });
+  })
+  .catch((err) => console.error("MongoDB Connection Failed", err));

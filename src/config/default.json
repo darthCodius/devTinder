@@ -1,0 +1,7 @@
+{
+  "mongo": {
+    "url": "mongodb+srv://learnernode:3GojAJExtRRxamPv@namastenode.paf02vg.mongodb.net/",
+    "username": "learnernode",
+    "password": "3GojAJExtRRxamPv"
+  }
+}
