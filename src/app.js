@@ -5,17 +5,11 @@ const User = require("./models/user");
 
 const port = 3030;
 
+app.use(express.json());
+
 app.post("/signup", async (req, res) => {
-  const userObj = {
-    firstName: "Amit",
-    lastName: "Kumar",
-    emailId: "test4@gmail.com",
-    password: "amit@123",
-  };
-
   // Creating a new instance of the User model
-  const user = new User(userObj);
-
+  const user = new User(req.body);
   try {
     await user.save();
     res.send({
@@ -25,7 +19,7 @@ app.post("/signup", async (req, res) => {
   } catch (error) {
     res.status(400).send({
       status: 400,
-      message: "Internal Server Error",
+      message: `Internal Server Error, ${error}`,
     });
   }
 });
