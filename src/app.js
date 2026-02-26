@@ -3,6 +3,8 @@ const app = express();
 const { connectDb } = require("./config/database");
 const mongoose = require("mongoose");
 const User = require("./models/user");
+const bcrypt = require("bcrypt");
+const { validateSignUpData } = require("./common/validations");
 
 const port = 3030;
 
@@ -10,9 +12,27 @@ app.use(express.json());
 
 // Create a user
 app.post("/signup", async (req, res) => {
-  // Creating a new instance of the User model
-  const user = new User(req.body);
   try {
+    // Validation of data
+    validateSignUpData(req);
+
+    // Encrypt the Password
+
+    const { firstName, lastName, emailId, password, age, gender, skills } =
+      req.body;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Creating a new instance of the User model
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      age,
+      gender,
+      skills,
+      password: passwordHash,
+    });
     await user.save();
     res.send({
       status: 200,
@@ -21,7 +41,7 @@ app.post("/signup", async (req, res) => {
   } catch (error) {
     res.status(400).send({
       status: 400,
-      message: `Internal Server Error, ${error}`,
+      message: `Internal Server Error, ${error.message}`,
     });
   }
 });
@@ -102,12 +122,26 @@ app.patch("/user/:id", async (req, res) => {
     // Validate the ObjectId in payload
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).send({
-        message: "Invalid user ID Format",
+        message: "Invalid user ID Format or User ID missing",
       });
     }
 
     // Extract the data to be updated
     const newUserData = req.body;
+
+    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "skills"];
+
+    const isUpdateAllowed = Object.keys(newUserData).every((key) =>
+      ALLOWED_UPDATES.includes(key),
+    );
+
+    if (!isUpdateAllowed) {
+      throw new Error("Update not allowed");
+    }
+
+    if (newUserData?.skills?.length > -10) {
+      throw new Error("Not more than 10 skills are allowed!");
+    }
 
     // Update the data, returns the updated document
     const updatedData = await User.findByIdAndUpdate(id, newUserData, {
@@ -122,7 +156,7 @@ app.patch("/user/:id", async (req, res) => {
   } catch (error) {
     res.status(400).send({
       status: 400,
-      message: `Something Went Wrong`,
+      message: error.message || `Something Went Wrong`,
     });
   }
 });
