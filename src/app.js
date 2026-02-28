@@ -4,7 +4,7 @@ const { connectDb } = require("./config/database");
 const mongoose = require("mongoose");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
-const { validateSignUpData } = require("./common/validations");
+const { validateSignUpData, validateLogin } = require("./common/validations");
 
 const port = 3030;
 
@@ -42,6 +42,42 @@ app.post("/signup", async (req, res) => {
     res.status(400).send({
       status: 400,
       message: `Internal Server Error, ${error.message}`,
+    });
+  }
+});
+
+// Logic a user
+app.post("/login", async (req, res) => {
+  try {
+    // Validate emailId and password
+    validateLogin(req);
+
+    const { emailId, password } = req.body;
+
+    // Check if Email is present
+
+    const existingUser = await User.findOne({ emailId }).exec();
+
+    if (!existingUser) {
+      throw new Error("Invalid Credentials");
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      existingUser.password,
+    );
+
+    if (isPasswordValid) {
+      res.status(200).send({
+        message: "Login Successful",
+      });
+    } else {
+      throw new Error("Invalid Credentials");
+    }
+  } catch (error) {
+    res.status(400).send({
+      status: 400,
+      message: `Something Went Wrong: ${error?.message}`,
     });
   }
 });

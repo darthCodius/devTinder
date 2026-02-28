@@ -18,6 +18,19 @@ const validateSignUpData = (req) => {
   }
 };
 
+const validateLogin = (req) => {
+  const { emailId, password } = req.body;
+
+  if (!validator.isEmail(emailId)) {
+    throw new Error("Invalid Credentials");
+  }
+
+  if (password.length === 0) {
+    throw new Error("Invalid Credentials");
+  }
+};
+
 module.exports = {
   validateSignUpData,
+  validateLogin,
 };
