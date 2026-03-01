@@ -2,9 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const { connectDb } = require("./config/database");
-const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
-const jwt = require("jsonwebtoken");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
 const { validateSignUpData, validateLogin } = require("./common/validations");
@@ -56,28 +54,26 @@ app.post("/login", async (req, res) => {
   try {
     // Validate emailId and password
     validateLogin(req);
-
     const { emailId, password } = req.body;
 
     // Check if Email is present
-
     const existingUser = await User.findOne({ emailId }).exec();
 
     if (!existingUser) {
       throw new Error("Invalid Credentials");
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      existingUser.password,
-    );
+    const isPasswordValid = await existingUser.validatePassword(password);
 
     if (isPasswordValid) {
       // Create a JWT Token
-      const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET);
-
+      const token = existingUser.getJWT(); // Schema method called on this instance of User Model
       //  Add the token to Cookie and send the response to Client
-      res.cookie("token", token);
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        expires: new Date(Date.now() + 8 * 3600000),
+      });
 
       res.status(200).send({
         message: "Login Successful",
@@ -89,26 +85,6 @@ app.post("/login", async (req, res) => {
     res.status(400).send({
       status: 400,
       message: `Something Went Wrong: ${error?.message}`,
-    });
-  }
-});
-
-// Get user by email
-app.get("/user", async (req, res) => {
-  try {
-    const user = await User.findOne({ emailId: req.body.emailId }).exec();
-    if (!user) {
-      res.status(404).send({
-        status: 404,
-        message: "User not found",
-      });
-    } else {
-      res.status(200).send(user);
-    }
-  } catch (error) {
-    res.status(400).send({
-      status: 400,
-      message: `Something Went Wrong`,
     });
   }
 });
@@ -128,93 +104,16 @@ app.get("/profile", userAuth, async (req, res) => {
   }
 });
 
-// Get all users
-app.get("/feed", async (req, res) => {
+app.post("/sendConnection", userAuth, async (req, res) => {
   try {
-    const users = await User.find({}).exec();
-    res.send(users);
-  } catch (error) {
-    res.status(400).send({
-      status: 400,
-      message: `Something Went Wrong`,
-    });
-  }
-});
-
-// Delete a user
-app.delete("/user/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Validate if id is a valid MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).send({
-        message: "Invalid user ID Format",
+    if (req.user) {
+      res.status(200).send({
+        from: `${req.user?.firstName} ${req.user?.lastName}`,
+        message: "Connection request send!",
       });
+    } else {
+      throw new Error("You must be logged in to access this resource!");
     }
-
-    // Delete the user
-    const deletedUser = await User.findByIdAndDelete(id);
-
-    // Check if user exists
-    if (!deletedUser) {
-      return res.status(404).send({
-        message: "User not found!",
-      });
-    }
-
-    res.status(200).send({
-      message: "User delete!",
-      data: deletedUser,
-    });
-  } catch (error) {
-    res.status(400).send({
-      status: 400,
-      message: `Something Went Wrong`,
-    });
-  }
-});
-
-// Update data of a user
-
-app.patch("/user/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Validate the ObjectId in payload
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).send({
-        message: "Invalid user ID Format or User ID missing",
-      });
-    }
-
-    // Extract the data to be updated
-    const newUserData = req.body;
-
-    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "skills"];
-
-    const isUpdateAllowed = Object.keys(newUserData).every((key) =>
-      ALLOWED_UPDATES.includes(key),
-    );
-
-    if (!isUpdateAllowed) {
-      throw new Error("Update not allowed");
-    }
-
-    if (newUserData?.skills?.length > -10) {
-      throw new Error("Not more than 10 skills are allowed!");
-    }
-
-    // Update the data, returns the updated document
-    const updatedData = await User.findByIdAndUpdate(id, newUserData, {
-      new: true,
-      upsert: false,
-      runValidators: true,
-    });
-    res.status(200).send({
-      message: "User Updated Successfully",
-      updatedData,
-    });
   } catch (error) {
     res.status(400).send({
       status: 400,
