@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
 const { validateSignUpData, validateLogin } = require("./common/validations");
+const { userAuth } = require("./middleware/auth");
 
 const port = 3030;
 
@@ -113,28 +114,11 @@ app.get("/user", async (req, res) => {
 });
 
 // Get user profile
-app.get("/profile", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
   try {
-    const cookies = req.cookies;
-    const { token } = cookies;
-
-    if (!token) {
-      throw new Error("Invalid Token!");
-    }
-
-    // Validate the token
-    const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-
-    const { _id } = decodedData;
-    const user = await User.findById(_id);
-
-    if (!user) {
-      throw new Error("Please log in again!");
-    }
-
     res.status(200).send({
       message: "profile found",
-      profile: user,
+      profile: req.user,
     });
   } catch (error) {
     res.status(400).send({
