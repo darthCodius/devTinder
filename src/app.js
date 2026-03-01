@@ -1,7 +1,10 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const { connectDb } = require("./config/database");
 const mongoose = require("mongoose");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
 const { validateSignUpData, validateLogin } = require("./common/validations");
@@ -9,6 +12,7 @@ const { validateSignUpData, validateLogin } = require("./common/validations");
 const port = 3030;
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Create a user
 app.post("/signup", async (req, res) => {
@@ -68,6 +72,12 @@ app.post("/login", async (req, res) => {
     );
 
     if (isPasswordValid) {
+      // Create a JWT Token
+      const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET);
+
+      //  Add the token to Cookie and send the response to Client
+      res.cookie("token", token);
+
       res.status(200).send({
         message: "Login Successful",
       });
@@ -98,6 +108,38 @@ app.get("/user", async (req, res) => {
     res.status(400).send({
       status: 400,
       message: `Something Went Wrong`,
+    });
+  }
+});
+
+// Get user profile
+app.get("/profile", async (req, res) => {
+  try {
+    const cookies = req.cookies;
+    const { token } = cookies;
+
+    if (!token) {
+      throw new Error("Invalid Token!");
+    }
+
+    // Validate the token
+    const decodedData = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { _id } = decodedData;
+    const user = await User.findById(_id);
+
+    if (!user) {
+      throw new Error("Please log in again!");
+    }
+
+    res.status(200).send({
+      message: "profile found",
+      profile: user,
+    });
+  } catch (error) {
+    res.status(400).send({
+      status: 400,
+      message: error.message || `Something Went Wrong`,
     });
   }
 });
